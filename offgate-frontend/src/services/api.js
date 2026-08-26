@@ -1,58 +1,46 @@
-const API_URL = 'http://localhost:8080/api';
+import axios from 'axios';
 
-// Função para anexar o Token nas requisições automaticamente
-const getHeaders = () => {
+const api = axios.create({
+  baseURL: 'http://localhost:8080/api'
+});
+
+// Anexa o token JWT automaticamente em todas as requisições
+api.interceptors.request.use((config) => {
   const token = localStorage.getItem('@OffGate:token');
-  return {
-    'Content-Type': 'application/json',
-    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-  };
-};
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
 
+// O serviço de Autenticação que o Login.jsx precisa!
+// O serviço de Autenticação atualizado!
 export const authService = {
-  login: async (username, password) => {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password }),
-    });
-    if (!response.ok) throw new Error('Credenciais inválidas');
-    return response.text(); // O Spring devolve o token como texto
+  login: async (credentials) => {
+    const response = await api.post('/auth/login', credentials);
+    return response.data;
+  },
+  register: async (credentials) => {
+    // Aponta para a rota de cadastro do seu Java
+    const response = await api.post('/auth/register', credentials); 
+    return response.data;
   }
 };
 
-export const freelancerService = {
+// O serviço de Repositórios que o Dashboard.jsx precisa
+export const repositoryService = {
   getAll: async () => {
-    try {
-      const response = await fetch(`${API_URL}/freelancers`, { headers: getHeaders() });
-      if (!response.ok) return [];
-      return await response.json();
-    } catch (error) {
-      return [];
-    }
+    const response = await api.get('/repositories');
+    return response.data;
   },
   create: async (data) => {
-    const response = await fetch(`${API_URL}/freelancers`, {
-      method: 'POST',
-      headers: getHeaders(),
-      body: JSON.stringify(data),
-    });
-    if (!response.ok) throw new Error('Erro ao salvar no servidor');
-    return response.json();
-  },
-  revoke: async (id) => {
-    const response = await fetch(`${API_URL}/freelancers/${id}/revoke`, {
-      method: 'PUT',
-      headers: getHeaders(),
-    });
-    if (!response.ok) throw new Error('Erro ao revogar acesso');
-    return response.json();
+    const response = await api.post('/repositories', data);
+    return response.data;
   },
   delete: async (id) => {
-    const response = await fetch(`${API_URL}/freelancers/${id}`, {
-      method: 'DELETE',
-      headers: getHeaders(),
-    });
-    if (!response.ok) throw new Error('Erro ao excluir contrato');
+    const response = await api.delete(`/repositories/${id}`);
+    return response.data;
   }
 };
+
+export default api;

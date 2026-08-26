@@ -30,9 +30,9 @@ public class SecurityConfig {
             // Removemos as sessões (stateless), o JWT quem manda agora
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/auth/**").permitAll() // Rota de login liberada
-                .requestMatchers("/h2-console/**").permitAll() // Banco de dados liberado (para testarmos)
-                .anyRequest().authenticated() // QUALQUER OUTRA ROTA AGORA EXIGE TOKEN!
+                .requestMatchers("/api/auth/**").permitAll() // <-- O "**" é o segredo aqui!
+                .requestMatchers("/api/repositories/**").authenticated()
+                .anyRequest().authenticated()
             )
             // Adiciona o nosso filtro antes do filtro padrão do Spring
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
