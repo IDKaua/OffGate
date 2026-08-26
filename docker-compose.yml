@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./offgate-backend  # Coloque aqui o nome exato da sua pasta do backend
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data      # Garante que o banco de dados não seja apagado ao reiniciar o docker
+
+  frontend:
+    build: ./offgate-frontend # Coloque aqui o nome exato da sua pasta do frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend               # O frontend só inicia depois que o backend estiver pronto

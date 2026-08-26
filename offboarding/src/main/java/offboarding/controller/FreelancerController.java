@@ -29,6 +29,25 @@ public class FreelancerController {
         return ResponseEntity.ok(repository.findAll());
     }
 
+    @PutMapping("/{id}/revoke")
+    public ResponseEntity<Freelancer> revokeAccess(@PathVariable("id") java.util.UUID id) {
+        return repository.findById(id)
+                .map(freelancer -> {
+                    freelancer.setIsRevoked(true); // Muda o status para revogado
+                    return ResponseEntity.ok(repository.save(freelancer));
+                })
+                .orElse(ResponseEntity.notFound().build());
+    }
+    
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable("id") java.util.UUID id) {
+        if (repository.existsById(id)) {
+            repository.deleteById(id);
+            return ResponseEntity.noContent().build(); // 204 No Content (Sucesso, mas sem corpo)
+        }
+        return ResponseEntity.notFound().build(); // 404 Se não achar
+    }
+
     @PostMapping("/encrypt-test")
     public ResponseEntity<String> testEncryption(@RequestBody String plainText) {
         return ResponseEntity.ok(encryptionService.encrypt(plainText));

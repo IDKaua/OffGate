@@ -26,11 +26,15 @@ public class Freelancer {
     @Column(nullable = false, unique = true)
     private String email;
 
+    // --- MÁGICA ACONTECENDO AQUI ---
+    @Convert(converter = offboarding.security.StringCryptoConverter.class)
     @Column(name = "github_username", nullable = false)
     private String githubUsername;
 
+    @Convert(converter = offboarding.security.StringCryptoConverter.class)
     @Column(name = "aws_iam_user")
     private String awsIamUser;
+    // -------------------------------
 
     @Column(name = "offboarding_date", nullable = false)
     private LocalDate offboardingDate;
@@ -48,5 +52,10 @@ public class Freelancer {
         if (this.isRevoked == null) {
             this.isRevoked = false;
         }
+    }
+
+    public void setRevoked(boolean b) {
+        // TODO Auto-generated method stub
+        throw new UnsupportedOperationException("Unimplemented method 'setRevoked'");
     }
 }
