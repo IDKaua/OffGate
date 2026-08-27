@@ -17,6 +17,7 @@ export function Dashboard({ onLogout }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
+  const [commitData, setCommitData] = useState({ message: '', branch: '' });
   
   // Estados do fluxo de IA
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
@@ -51,15 +52,24 @@ export function Dashboard({ onLogout }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await repositoryService.create(formData);
+      const payload = {
+        ...formData,
+        dateAdded: formData.dateAdded || new Date().toISOString().split('T')[0],
+        repoUrl: formData.repoUrl || `https://github.com/${formData.repoName}`
+      };
+
+      await repositoryService.create(payload);
+      
       setIsModalOpen(false);
       setFormData({ repoName: '', repoUrl: '', targetBranch: '', techStack: '', dateAdded: '', isHealthy: false });
       fetchRepositories();
       toast.success('Repositório conectado com sucesso!');
     } catch (error) {
+      console.error(error);
       toast.error('Erro ao conectar.');
     }
   };
+
   const handleGithubSearch = async () => {
     if (!formData.repoName) {
       toast.error('Digite o nome do repositório primeiro (Ex: IDKaua/Ecossistema)');
@@ -68,19 +78,17 @@ export function Dashboard({ onLogout }) {
     
     const toastId = toast.loading('Procurando nos servidores do GitHub...');
     try {
-      // Bate na API pública e gratuita do GitHub
       const response = await fetch(`https://api.github.com/repos/${formData.repoName}`);
       if (!response.ok) throw new Error('Não encontrado');
       
       const data = await response.json();
       
-      // Preenche o formulário automaticamente com a "verdade" do GitHub
       setFormData(prev => ({
         ...prev,
         repoUrl: data.html_url,
         targetBranch: data.default_branch,
         techStack: data.language || 'Múltiplas',
-        dateAdded: new Date().toISOString().split('T')[0] // Pega a data de hoje
+        dateAdded: new Date().toISOString().split('T')[0] 
       }));
       
       toast.success('Repositório validado e mapeado!', { id: toastId });
@@ -95,6 +103,7 @@ export function Dashboard({ onLogout }) {
     setIsPromptModalOpen(true);
   };
 
+  // FUNÇÃO CORRIGIDA AQUI!
   const triggerRepairSimulation = async () => {
     setIsPromptModalOpen(false); 
     setIsTerminalOpen(true);
@@ -119,6 +128,13 @@ export function Dashboard({ onLogout }) {
       setTerminalLogs(prev => [...prev, '⏸️ [OffGate Core] Patch gerado. Aguardando aprovação humana (Code Review)...']);
       setIsSimulating(false);
       setAwaitingReview(true); 
+      
+      // Prepara o formulário de commit com dados iniciais
+      const repo = repositories.find(r => r.id === selectedRepoId);
+      setCommitData({ 
+        message: `fix: correção baseada em instrução da IA`, 
+        branch: repo?.targetBranch || 'main' 
+      });
     }, 5500);
   };
 
@@ -138,7 +154,11 @@ export function Dashboard({ onLogout }) {
           'Authorization': `Bearer ${localStorage.getItem('@OffGate:token')}`,
           'Content-Type': 'application/json' 
         },
-        body: JSON.stringify({ prompt: aiPrompt }) 
+        body: JSON.stringify({ 
+          prompt: aiPrompt,
+          commitMessage: commitData.message,
+          branch: commitData.branch
+        }) 
       });
       
       if (!response.ok) throw new Error('Falha no Java');
@@ -213,7 +233,6 @@ export function Dashboard({ onLogout }) {
 
       <main className="max-w-6xl mx-auto mt-8">
         
-        {/* CARDS RESTAURADOS AQUI! */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           <div className="bg-dark-800 border border-dark-700 p-5 rounded-xl flex items-center justify-between shadow-lg">
             <div>
@@ -248,7 +267,6 @@ export function Dashboard({ onLogout }) {
 
         <div className="bg-dark-800 border border-dark-700 rounded-xl overflow-hidden shadow-xl">
           
-          {/* BARRA DE PESQUISA E ABAS RESTAURADAS AQUI! */}
           <div className="p-6 border-b border-dark-700 flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
               <div className="flex items-center space-x-3">
@@ -375,7 +393,6 @@ export function Dashboard({ onLogout }) {
             </div>
             
             <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-              {/* CAMPO COM O BOTÃO DE BUSCA NO GITHUB */}
               <div>
                 <label className="text-xs font-medium text-gray-400">Nome do Repositório (Dono/Projeto)</label>
                 <div className="flex mt-1 space-x-2">
@@ -397,7 +414,6 @@ export function Dashboard({ onLogout }) {
                 </div>
               </div>
 
-              {/* CAMPOS AUTO-PREENCHÍVEIS */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-medium text-gray-400">Branch Alvo</label>
@@ -456,7 +472,7 @@ export function Dashboard({ onLogout }) {
         </div>
       )}
 
-      {/* VISUALIZADOR DE DIFF */}
+      {/* VISUALIZADOR DE DIFF COM FORMULÁRIO DE COMMIT INCLUSO */}
       {isDiffModalOpen && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 z-[70]">
           <div className="bg-dark-900 border border-gray-700 rounded-xl w-full max-w-4xl shadow-2xl flex flex-col h-[80vh]">
@@ -501,15 +517,50 @@ export function Dashboard({ onLogout }) {
               </div>
             </div>
 
-            <div className="p-4 border-t border-gray-800 bg-dark-800 rounded-b-xl flex justify-between items-center">
-              <span className="text-xs text-gray-400">A IA considerou o seu prompt para gerar este patch.</span>
-              <div className="flex gap-3">
-                <button onClick={() => { setIsDiffModalOpen(false); setIsTerminalOpen(true); }} className="px-4 py-2 bg-dark-700 text-gray-300 rounded-lg text-sm cursor-pointer hover:bg-dark-600">Rejeitar Sugestão</button>
-                <button onClick={approveAndPush} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm cursor-pointer hover:bg-emerald-500 flex items-center gap-2 font-medium shadow-lg shadow-emerald-600/20">
-                  <Check className="w-4 h-4" /> Aprovar e Fazer Push
-                </button>
+            {/* AQUI ESTÁ O NOVO FORMULÁRIO DE COMMIT EMBUTIDO! */}
+            <div className="p-4 border-t border-gray-800 bg-dark-800 rounded-b-xl flex flex-col gap-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <label className="text-xs font-medium text-gray-400">Mensagem do Commit</label>
+                  <input 
+                    type="text" 
+                    value={commitData.message}
+                    onChange={(e) => setCommitData({...commitData, message: e.target.value})}
+                    className="w-full mt-1 bg-dark-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+                <div className="w-1/3">
+                  <label className="text-xs font-medium text-gray-400">Branch de Destino</label>
+                  <input 
+                    type="text" 
+                    value={commitData.branch}
+                    onChange={(e) => setCommitData({...commitData, branch: e.target.value})}
+                    className="w-full mt-1 bg-dark-900 border border-gray-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center pt-2">
+                <div className="flex items-center gap-2">
+                  <Code2 className="w-4 h-4 text-gray-500" />
+                  <span className="text-xs text-gray-400">
+                    Alvo: <strong className="text-gray-300">
+                      {repositories.find(r => r.id === selectedRepoId)?.repoName || 'Repositório'}
+                    </strong>
+                  </span>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button onClick={() => { setIsDiffModalOpen(false); setIsTerminalOpen(true); }} className="px-4 py-2 bg-dark-700 text-gray-300 rounded-lg text-sm cursor-pointer hover:bg-dark-600 transition-colors">
+                    Rejeitar Sugestão
+                  </button>
+                  <button onClick={approveAndPush} className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm cursor-pointer hover:bg-emerald-500 flex items-center gap-2 font-medium shadow-lg shadow-emerald-600/20 transition-all">
+                    <Check className="w-4 h-4" /> Aprovar e Fazer Push
+                  </button>
+                </div>
               </div>
             </div>
+
           </div>
         </div>
       )}

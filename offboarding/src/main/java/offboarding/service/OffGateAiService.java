@@ -14,35 +14,32 @@ public class OffGateAiService {
     @Autowired
     private MonitoredRepoRepository repository;
 
-    // Adicione o String customPrompt nos parâmetros:
-public boolean runAiDeepScanAndRepair(UUID repoId, String customPrompt) {
-    Optional<MonitoredRepo> repoOpt = repository.findById(repoId);
-    
-    if (repoOpt.isEmpty()) {
+    @Autowired
+    private GitHubIntegrationService githubService; // Injetando o nosso robô do Git
+
+    // Atualize os parâmetros do método
+    public boolean runAiDeepScanAndRepair(UUID repoId, String customPrompt, String commitMessage, String customBranch) {
+        Optional<MonitoredRepo> repoOpt = repository.findById(repoId);
+        if (repoOpt.isEmpty()) return false;
+
+        MonitoredRepo repo = repoOpt.get();
+        
+        // Se o usuário digitou uma branch no formulário, usa ela. Senão, usa a do banco.
+        String branchToPush = (customBranch != null && !customBranch.trim().isEmpty()) ? customBranch : repo.getTargetBranch();
+
+        System.out.println("\n==================================================");
+        System.out.println("⚡ [OffGate AI Engine] Code Review aprovado pelo usuário!");
+        System.out.println("📦 Destino: " + repo.getRepoName() + " | Branch: " + branchToPush);
+        System.out.println("📝 Mensagem: " + commitMessage);
+
+        // Passa os dados do formulário para o serviço do GitHub
+        boolean pushSuccess = githubService.commitAndPush(repo.getRepoName(), branchToPush, commitMessage, customPrompt);
+
+        if (pushSuccess) {
+            repo.setHealthy(true);
+            repository.save(repo);
+            return true;
+        }
         return false;
     }
-
-    MonitoredRepo repo = repoOpt.get();
-
-    System.out.println("\n==================================================");
-    System.out.println("⚡ [OffGate AI Engine] Inicializando motor de análise...");
-    System.out.println("📥 Alvo: " + repo.getRepoName());
-    
-    // Mostrando a instrução do usuário no console do Java!
-    System.out.println("💬 Instrução do Usuário: \"" + customPrompt + "\"");
-    
-    try {
-        Thread.sleep(2000);
-    } catch (InterruptedException e) {
-        e.printStackTrace();
-    }
-
-    System.out.println("⚠️ Adaptando regras da LLM baseadas no prompt...");
-    System.out.println("✨ [OffGate AI Engine] Patch gerado e salvo no banco.");
-    System.out.println("==================================================\n");
-
-    repo.setHealthy(true);
-    repository.save(repo);
-    return true;
-}
 }

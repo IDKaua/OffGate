@@ -43,17 +43,17 @@ public class MonitoredRepoController {
     // O método foi limpo e agora delega o trabalho pesado para o Service!
     @PutMapping("/{id}/repair")
     public ResponseEntity<?> repairRepo(@PathVariable UUID id, @RequestBody(required = false) Map<String, String> payload) {
-    
-    // Pega o prompt enviado pelo React, ou usa um padrão se vier vazio
-    String prompt = (payload != null && payload.containsKey("prompt")) 
-                    ? payload.get("prompt") 
-                    : "Fazer análise completa e corrigir vulnerabilidades padrão.";
-                    
-    boolean isRepaired = aiService.runAiDeepScanAndRepair(id, prompt);
-    
-    if (isRepaired) {
-        return ResponseEntity.ok().build();
+        
+        String prompt = (payload != null && payload.containsKey("prompt")) ? payload.get("prompt") : "Otimização padrão";
+        // Captura os dados do formulário de commit do React
+        String commitMessage = (payload != null && payload.containsKey("commitMessage")) ? payload.get("commitMessage") : "fix: patch automático";
+        String customBranch = (payload != null && payload.containsKey("branch")) ? payload.get("branch") : null;
+                        
+        boolean isRepaired = aiService.runAiDeepScanAndRepair(id, prompt, commitMessage, customBranch);
+        
+        if (isRepaired) {
+            return ResponseEntity.ok().build();
+        }
+        return ResponseEntity.notFound().build();
     }
-    return ResponseEntity.notFound().build();
-}
 }
